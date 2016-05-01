@@ -365,7 +365,7 @@ class Recognizer(AudioSource):
         self.phrase_threshold = 0.3 # minimum seconds of speaking audio before we consider the speaking audio a phrase - values below this are ignored (for filtering out clicks and pops)
         self.non_speaking_duration = 0.5 # seconds of non-speaking audio to keep on both sides of the recording
         self.paused = False
-        self.sphinx_decoder = None
+        decoder = None
 
     def record(self, source, duration = None, offset = None):
         """
@@ -553,51 +553,50 @@ class Recognizer(AudioSource):
         except ImportError:
             raise RequestError("missing PocketSphinx module: ensure that PocketSphinx is set up correctly.")
 
-        if not self.sphinx_decoder:
-            language_directory = os.path.join(os.path.dirname(os.path.realpath(__file__)), "pocketsphinx-data", 'james')
-            if not os.path.isdir(language_directory):
-                raise RequestError("missing PocketSphinx language data directory: \"{0}\"".format(language_directory))
+        language_directory = os.path.join(os.path.dirname(os.path.realpath(__file__)), "pocketsphinx-data", 'james')
+        if not os.path.isdir(language_directory):
+            raise RequestError("missing PocketSphinx language data directory: \"{0}\"".format(language_directory))
 
-            acoustic_parameters_directory = os.path.join(language_directory, "acoustic-model")
-            if not os.path.isdir(acoustic_parameters_directory):
-                raise RequestError("missing PocketSphinx language model parameters directory: \"{0}\"".format(
-                    acoustic_parameters_directory))
+        acoustic_parameters_directory = os.path.join(language_directory, "acoustic-model")
+        if not os.path.isdir(acoustic_parameters_directory):
+            raise RequestError("missing PocketSphinx language model parameters directory: \"{0}\"".format(
+                acoustic_parameters_directory))
 
-            language_model_file = os.path.join(language_directory, "james.lm")
-            if not os.path.isfile(language_model_file):
-                raise RequestError("missing PocketSphinx language model file: \"{0}\"".format(language_model_file))
+        language_model_file = os.path.join(language_directory, "james.lm")
+        if not os.path.isfile(language_model_file):
+            raise RequestError("missing PocketSphinx language model file: \"{0}\"".format(language_model_file))
 
-            phoneme_dictionary_file = os.path.join(language_directory, "james.dic")
-            if not os.path.isfile(phoneme_dictionary_file):
-                raise RequestError("missing PocketSphinx phoneme dictionary file: \"{0}\"".format(phoneme_dictionary_file))
+        phoneme_dictionary_file = os.path.join(language_directory, "james.dic")
+        if not os.path.isfile(phoneme_dictionary_file):
+            raise RequestError("missing PocketSphinx phoneme dictionary file: \"{0}\"".format(phoneme_dictionary_file))
 
-            config = pocketsphinx.Decoder.default_config()
-            config.set_string("-hmm", acoustic_parameters_directory)  # set the path of the hidden Markov model (HMM) parameter files
-            config.set_string("-lm", language_model_file)
-            config.set_string("-dict", phoneme_dictionary_file)
-            config.set_string("-keyphrase", keyword)
-            config.set_string("-logfn", os.devnull)  # disable logging (logging causes unwanted output in terminal)
-            config.set_float('-kws_threshold', 1e+20)
-            self.sphinx_decoder = pocketsphinx.Decoder(config)
+        config = pocketsphinx.Decoder.default_config()
+        config.set_string("-hmm", acoustic_parameters_directory)  # set the path of the hidden Markov model (HMM) parameter files
+        config.set_string("-lm", language_model_file)
+        config.set_string("-dict", phoneme_dictionary_file)
+        config.set_string("-keyphrase", keyword)
+        config.set_string("-logfn", os.devnull)  # disable logging (logging causes unwanted output in terminal)
+        config.set_float('-kws_threshold', 1e+20)
+        decoder = pocketsphinx.Decoder(config)
 
-            self.sphinx_decoder.start_utt()
+        decoder.start_utt()
 
         while True:
             try:
                 buf = source.stream.read(source.CHUNK)
                 if buf and self.paused == False:
-                    self.sphinx_decoder.process_raw(buf, False, False)
+                    decoder.process_raw(buf, False, False)
                 else:
                     break
 
-                if self.sphinx_decoder.hyp() != None:
-                    self.sphinx_decoder.end_utt()
+                if decoder.hyp() != None:
+                    decoder.end_utt()
                     if debug:
-                        print(self.sphinx_decoder.hyp().hypstr)
-                    for seg in self.sphinx_decoder.seg():
+                        print(decoder.hyp().hypstr)
+                    for seg in decoder.seg():
                         if seg.word == keyword:
                             return True
-                    self.sphinx_decoder.start_utt()
+                    decoder.start_utt()
             except IOError as ex:
                 pass
 

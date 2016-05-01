@@ -364,6 +364,8 @@ class Recognizer(AudioSource):
         self.pause_threshold = 0.8 # seconds of non-speaking audio before a phrase is considered complete
         self.phrase_threshold = 0.3 # minimum seconds of speaking audio before we consider the speaking audio a phrase - values below this are ignored (for filtering out clicks and pops)
         self.non_speaking_duration = 0.5 # seconds of non-speaking audio to keep on both sides of the recording
+        self.paused = False
+        self.sphinx_decoder = None
 
     def record(self, source, duration = None, offset = None):
         """
@@ -449,6 +451,9 @@ class Recognizer(AudioSource):
 
             # store audio input until the phrase starts
             while True:
+                if self.muted:
+                    return None
+
                 elapsed_time += seconds_per_buffer
                 if timeout and elapsed_time > timeout: # handle timeout if specified
                     raise WaitTimeoutError("listening timed out")
@@ -472,6 +477,9 @@ class Recognizer(AudioSource):
             # read audio input until the phrase ends
             pause_count, phrase_count = 0, 0
             while True:
+                if self.muted:
+                    return None
+
                 elapsed_time += seconds_per_buffer
 
                 buffer = source.stream.read(source.CHUNK)
@@ -497,6 +505,12 @@ class Recognizer(AudioSource):
         frame_data = b"".join(list(frames))
 
         return AudioData(frame_data, source.SAMPLE_RATE, source.SAMPLE_WIDTH)
+
+    def pause(self):
+        self.paused = True
+
+    def resume(self):
+        self.paused = False
 
     def listen_in_background(self, source, callback):
         """
@@ -526,6 +540,61 @@ class Recognizer(AudioSource):
         listener_thread.daemon = True
         listener_thread.start()
         return stopper
+
+    def recognize_sphinx_keyword(self, source, keyword='JAMES'):
+
+        assert isinstance(source, AudioSource), "Source must be an audio source"
+        assert source.stream is not None, "Audio source must be opened before recording - see documentation for `AudioSource`"
+        assert self.pause_threshold >= self.non_speaking_duration >= 0
+
+        #  REMOVE THIS !!!
+        from IPython import embed
+
+        try:
+            from pocketsphinx import pocketsphinx
+            from sphinxbase import sphinxbase
+        except ImportError:
+            raise RequestError("missing PocketSphinx module: ensure that PocketSphinx is set up correctly.")
+
+        if not self.sphinx_decoder:
+            language_directory = os.path.join(os.path.dirname(os.path.realpath(__file__)), "pocketsphinx-data", 'james')
+            if not os.path.isdir(language_directory):
+                raise RequestError("missing PocketSphinx language data directory: \"{0}\"".format(language_directory))
+
+            language_model_file = os.path.join(language_directory, "james.lm")
+            if not os.path.isfile(language_model_file):
+                raise RequestError("missing PocketSphinx language model file: \"{0}\"".format(language_model_file))
+
+            phoneme_dictionary_file = os.path.join(language_directory, "james.dic")
+            if not os.path.isfile(phoneme_dictionary_file):
+                raise RequestError("missing PocketSphinx phoneme dictionary file: \"{0}\"".format(phoneme_dictionary_file))
+
+            config = pocketsphinx.Decoder.default_config()
+            config.set_string("-lm", language_model_file)
+            config.set_string("-dict", phoneme_dictionary_file)
+            config.set_string("-keyphrase", keyword)
+            config.set_string("-logfn", os.devnull)  # disable logging (logging causes unwanted output in terminal)
+            config.set_float('-kws_threshold', 1e+20)
+            self.sphinx_decoder = pocketsphinx.Decoder(config)
+
+            self.sphinx_decoder.start_utt()
+
+        while True:
+            try:
+                buf = source.stream.read(source.CHUNK)
+                if buf and self.paused == False:
+                    self.sphinx_decoder.process_raw(buf, False, True)
+                else:
+                    break
+
+                if self.sphinx_decoder.hyp() != None:
+                    self.sphinx_decoder.end_utt()
+                    for seg in self.sphinx_decoder.seg():
+                        embed()
+                    self.sphinx_decoder.start_utt()
+            except IOError as ex:
+                pass
+
 
     def recognize_sphinx(self, audio_data, language = "en-US", show_all = False):
         """

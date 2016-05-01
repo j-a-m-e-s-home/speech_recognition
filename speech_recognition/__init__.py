@@ -541,7 +541,7 @@ class Recognizer(AudioSource):
         listener_thread.start()
         return stopper
 
-    def recognize_sphinx_keyword(self, source, keyword='JAMES'):
+    def recognize_sphinx_keyword(self, source, keyword='JAMES', debug=False):
 
         assert isinstance(source, AudioSource), "Source must be an audio source"
         assert source.stream is not None, "Audio source must be opened before recording - see documentation for `AudioSource`"
@@ -586,12 +586,14 @@ class Recognizer(AudioSource):
             try:
                 buf = source.stream.read(source.CHUNK)
                 if buf and self.paused == False:
-                    self.sphinx_decoder.process_raw(buf, False, True)
+                    self.sphinx_decoder.process_raw(buf, False, False)
                 else:
                     break
 
                 if self.sphinx_decoder.hyp() != None:
                     self.sphinx_decoder.end_utt()
+                    if debug:
+                        print(self.sphinx_decoder.hyp().hypstr)
                     for seg in self.sphinx_decoder.seg():
                         if seg.word == keyword:
                             return True

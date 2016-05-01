@@ -561,6 +561,11 @@ class Recognizer(AudioSource):
             if not os.path.isdir(language_directory):
                 raise RequestError("missing PocketSphinx language data directory: \"{0}\"".format(language_directory))
 
+            acoustic_parameters_directory = os.path.join(language_directory, "acoustic-model")
+            if not os.path.isdir(acoustic_parameters_directory):
+                raise RequestError("missing PocketSphinx language model parameters directory: \"{0}\"".format(
+                    acoustic_parameters_directory))
+
             language_model_file = os.path.join(language_directory, "james.lm")
             if not os.path.isfile(language_model_file):
                 raise RequestError("missing PocketSphinx language model file: \"{0}\"".format(language_model_file))
@@ -570,6 +575,7 @@ class Recognizer(AudioSource):
                 raise RequestError("missing PocketSphinx phoneme dictionary file: \"{0}\"".format(phoneme_dictionary_file))
 
             config = pocketsphinx.Decoder.default_config()
+            config.set_string("-hmm", acoustic_parameters_directory)  # set the path of the hidden Markov model (HMM) parameter files
             config.set_string("-lm", language_model_file)
             config.set_string("-dict", phoneme_dictionary_file)
             config.set_string("-keyphrase", keyword)

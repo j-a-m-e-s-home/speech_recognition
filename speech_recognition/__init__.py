@@ -451,7 +451,7 @@ class Recognizer(AudioSource):
 
             # store audio input until the phrase starts
             while True:
-                if self.muted:
+                if self.paused:
                     return None
 
                 elapsed_time += seconds_per_buffer
@@ -477,7 +477,7 @@ class Recognizer(AudioSource):
             # read audio input until the phrase ends
             pause_count, phrase_count = 0, 0
             while True:
-                if self.muted:
+                if self.paused:
                     return None
 
                 elapsed_time += seconds_per_buffer

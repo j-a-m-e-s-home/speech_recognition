@@ -547,9 +547,6 @@ class Recognizer(AudioSource):
         assert source.stream is not None, "Audio source must be opened before recording - see documentation for `AudioSource`"
         assert self.pause_threshold >= self.non_speaking_duration >= 0
 
-        #  REMOVE THIS !!!
-        from IPython import embed
-
         try:
             from pocketsphinx import pocketsphinx
             from sphinxbase import sphinxbase
@@ -596,10 +593,13 @@ class Recognizer(AudioSource):
                 if self.sphinx_decoder.hyp() != None:
                     self.sphinx_decoder.end_utt()
                     for seg in self.sphinx_decoder.seg():
-                        embed()
+                        if seg.word == keyword:
+                            return True
                     self.sphinx_decoder.start_utt()
             except IOError as ex:
                 pass
+
+        return False
 
 
     def recognize_sphinx(self, audio_data, language = "en-US", show_all = False):

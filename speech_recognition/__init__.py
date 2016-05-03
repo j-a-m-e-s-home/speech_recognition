@@ -365,7 +365,6 @@ class Recognizer(AudioSource):
         self.phrase_threshold = 0.3 # minimum seconds of speaking audio before we consider the speaking audio a phrase - values below this are ignored (for filtering out clicks and pops)
         self.non_speaking_duration = 0.5 # seconds of non-speaking audio to keep on both sides of the recording
         self.paused = False
-        decoder = None
 
     def record(self, source, duration = None, offset = None):
         """
@@ -629,10 +628,10 @@ class Recognizer(AudioSource):
         acoustic_parameters_directory = os.path.join(language_directory, "acoustic-model")
         if not os.path.isdir(acoustic_parameters_directory):
             raise RequestError("missing PocketSphinx language model parameters directory: \"{0}\"".format(acoustic_parameters_directory))
-        language_model_file = os.path.join(language_directory, "language-model.lm.bin")
+        language_model_file = os.path.join(language_directory, "james.lm")
         if not os.path.isfile(language_model_file):
             raise RequestError("missing PocketSphinx language model file: \"{0}\"".format(language_model_file))
-        phoneme_dictionary_file = os.path.join(language_directory, "pronounciation-dictionary.dict")
+        phoneme_dictionary_file = os.path.join(language_directory, "james.dic")
         if not os.path.isfile(phoneme_dictionary_file):
             raise RequestError("missing PocketSphinx phoneme dictionary file: \"{0}\"".format(phoneme_dictionary_file))
 

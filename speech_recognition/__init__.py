@@ -622,7 +622,8 @@ class Recognizer(AudioSource):
         except ImportError:
             raise RequestError("missing PocketSphinx module: ensure that PocketSphinx is set up correctly.")
 
-        language_directory = os.path.join(os.path.dirname(os.path.realpath(__file__)), "pocketsphinx-data", language)
+        # Temporary use james as source directory for speech
+        language_directory = os.path.join(os.path.dirname(os.path.realpath(__file__)), "pocketsphinx-data", 'james')
         if not os.path.isdir(language_directory):
             raise RequestError("missing PocketSphinx language data directory: \"{0}\"".format(language_directory))
         acoustic_parameters_directory = os.path.join(language_directory, "acoustic-model")
